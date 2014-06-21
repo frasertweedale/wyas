@@ -1,18 +1,20 @@
 {-# LANGUAGE TupleSections #-}
 
-module Stack where
+module Stack
+  (
+    LispStack(..)
+  , get
+  , set
+  , def
+  , initial
+  ) where
 
 import Control.Applicative
 import Control.Arrow
 import qualified Data.Map as M
 
-import Data
-import Error
+import Types
 
-
-data LispStack
-  = Initial (M.Map String LispVal)
-  | Frame (M.Map String LispVal) LispStack
 
 isBound :: String -> LispStack -> Bool
 isBound k (Initial m) = M.member k m
@@ -39,10 +41,6 @@ def :: String -> LispVal -> LispStack -> ThrowsError (LispVal, LispStack)
 def k v stack = case stack of
   Initial m -> return (v, Initial (M.insert k v m))
   Frame m o -> return (v, Frame (M.insert k v m) o)
-
-binds :: M.Map String LispVal -> LispStack -> LispStack
-binds m' (Initial m) = Initial (M.union m' m)
-binds m' (Frame m stack) = Frame (M.union m' m) stack
 
 initial :: LispStack
 initial = Initial M.empty

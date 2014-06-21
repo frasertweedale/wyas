@@ -3,11 +3,11 @@ module Lib
     lib
   ) where
 
+import Control.Arrow
 import Control.Monad.Error
 import qualified Data.Map as M
 
-import Data
-import Error
+import Types
 
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x:_)] = return x
@@ -54,8 +54,8 @@ unpackBool :: LispVal -> ThrowsError Bool
 unpackBool (Bool b) = return b
 unpackBool a = throwError $ TypeMismatch "boolean" a
 
-lib :: M.Map String ([LispVal] -> ThrowsError LispVal)
-lib = M.fromList
+lib :: LispStack
+lib = Initial $ M.fromList $ map (second PrimFun)
   [
     ("car", car)
   , ("cdr", cdr)

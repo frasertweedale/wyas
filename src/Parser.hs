@@ -6,7 +6,7 @@ module Parser
 import Control.Applicative ((<$>), (<*>), (<|>))
 import Text.ParserCombinators.Parsec hiding (spaces, (<|>))
 
-import Data
+import Types
 
 spaces :: Parser ()
 spaces = skipMany1 space
