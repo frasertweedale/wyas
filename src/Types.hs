@@ -5,17 +5,18 @@ module Types
     LispVal(..)
 
   , LispError(..)
-  , ThrowsError
-  , throwError
+
+  , Eval
+  , runEval
 
   , LispStack(..)
   ) where
 
 import Control.Monad.Error
+import Control.Monad.State
 import qualified Data.Map as M
 
-import Text.ParserCombinators.Parsec
-
+import qualified Text.ParserCombinators.Parsec as Parsec
 
 
 data LispVal
@@ -25,7 +26,7 @@ data LispVal
   | Number Integer
   | String String
   | Bool Bool
-  | PrimFun ([LispVal] -> ThrowsError LispVal)
+  | PrimFun ([LispVal] -> Eval LispVal)
   | Fun
     { params :: [String]
     --, vararg :: Maybe String
@@ -52,7 +53,7 @@ instance Show LispVal where
 data LispError
   = NumArgs Int [LispVal]
   | TypeMismatch String LispVal
-  | Parser ParseError
+  | Parser Parsec.ParseError
   | BadSpecialForm String LispVal
   | NotFunction String String
   | UnboundVar String String
@@ -73,7 +74,11 @@ instance Error LispError where
   noMsg = Default "An error has occurred"
   strMsg = Default
 
-type ThrowsError = Either LispError
+
+type Eval = ErrorT LispError (State LispStack)
+
+runEval :: Eval a -> LispStack -> (Either LispError a, LispStack)
+runEval k = runState (runErrorT k)
 
 
 data LispStack

@@ -8,68 +8,69 @@ module Eval
   ) where
 
 import Control.Monad.Error
+import Control.Monad.State
 import qualified Data.Map as M
 
-import Text.ParserCombinators.Parsec
+import qualified Text.ParserCombinators.Parsec as Parsec
 
 import Types
 import Parser
 import Stack
 
-readExpr :: String -> ThrowsError LispVal
-readExpr s = case parse parseExpr "lisp" s of
+readExpr :: String -> Eval LispVal
+readExpr s = case Parsec.parse parseExpr "lisp" s of
   Left err -> throwError $ Parser err
   Right v -> return v
 
-eval :: LispStack -> LispVal -> ThrowsError (LispVal, LispStack)
-eval env v@(String _) = return (v, env)
-eval env v@(Number _) = return (v, env)
-eval env v@(Bool _)   = return (v, env)
-eval env (List [Atom "quote", val]) = return (val, env)
-eval env (List [Atom "if", p, t, f]) = do
-  (result, env') <- eval env p
-  case result of
-    Bool True -> eval env' t
-    Bool _ -> eval env' f
-    a -> throwError $ TypeMismatch "boolean" a
-eval env (Atom k) = get k env
-eval env (List [Atom "set!", Atom k, expr]) =
-  eval env expr >>= uncurry (set k)
-eval env (List [Atom "define", Atom k, expr]) =
-  eval env expr >>= uncurry (def k)
-eval env (List (Atom "define" : List (Atom k : params) : body)) =
+eval :: LispVal -> Eval LispVal
+eval v@(String _) = return v
+eval v@(Number _) = return v
+eval v@(Bool _)   = return v
+eval (List [Atom "quote", v]) = return v
+eval (List [Atom "if", p, t, f]) = do
+  v <- eval p
+  case v of
+    Bool True -> eval t
+    Bool _    -> eval f
+    a         -> throwError $ TypeMismatch "boolean" a
+eval (Atom k) = getVar k
+eval (List [Atom "set!", Atom k, expr]) = eval expr >>= setVar k
+eval (List [Atom "define", Atom k, expr]) = eval expr >>= defVar k
+eval (List (Atom "define" : List (Atom k : params) : body)) = do
+  env <- get
   let  -- ensure function environment has itself, i.e. to allow recursion
     f = Fun (map show params) body env'
     env' = case env of
       Initial m -> Initial (M.insert k f m)
       Frame m stack -> Frame (M.insert k f m) stack
-  in def k f env'
+  put env' >> defVar k f
 -- TODO "define" DottedList
-eval env (List (Atom "lambda" : List params : body)) =
-  return (Fun (map show params) body env, env)
+eval (List (Atom "lambda" : List params : body)) = do
+  env <- get
+  return (Fun (map show params) body env)
 -- TODO "lambda" DottedList
 -- TODO "lambda" atom varargs
-eval env (List (f@(Atom k) : args)) = do
-  (f', env') <- eval env f
-  (args', env'') <- mapStack env' args
+eval (List (f@(Atom k) : args)) = do
+  f' <- eval f
+  args' <- mapStack args
   (f'', v) <- apply f' args'
-  liftM ((v,) . snd) (set k f'' env'')
-eval _ a = throwError $ BadSpecialForm "Unrecognised special form" a
+  setVar k f'' >> return v
+eval a = throwError $ BadSpecialForm "Unrecognised special form" a
 
-mapStack :: LispStack -> [LispVal] -> ThrowsError ([LispVal], LispStack)
-mapStack env [] = return ([], env)
-mapStack env (v:vs) = do
-  (v', env') <- eval env v
-  (vs', env'') <- mapStack env' vs
-  return (v':vs', env'')
+mapStack :: [LispVal] -> Eval [LispVal]
+mapStack = foldr (liftM2 (:) . eval) (return [])
 
-apply :: LispVal -> [LispVal] -> ThrowsError (LispVal, LispVal)
+apply :: LispVal -> [LispVal] -> Eval (LispVal, LispVal)
 apply v@(PrimFun f) args = liftM (v,) (f args)
 apply (Fun {..}) args =
   if length args /= length params
     then throwError $ NumArgs (length params) args
     else do
-      let env = Frame (M.fromList (zip params args)) closure
-      (vals, env') <- mapStack env body
+      -- TODO inner runEval probably nicer than this state munging
+      callerEnv <- get
+      _ <- put $ Frame (M.fromList (zip params args)) closure
+      vals <- mapStack body
+      env' <- get
+      put callerEnv
       return (Fun params body (peel env'), last vals)  -- FIXME non-total
 apply v args = throwError $ NotFunction (show v) (show args)
