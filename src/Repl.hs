@@ -12,9 +12,9 @@ import Stack
 import Types
 
 evalAndPrint :: LispStack -> String -> IO LispStack
-evalAndPrint env s =
-  let (result, env') = runEval (readExpr s >>= eval) env
-  in case result of
+evalAndPrint env s = do
+  (result, env') <- runEval (readExpr s >>= eval) env
+  case result of
     Left e  -> print e >> return env'
     Right v -> print v >> return env'
 

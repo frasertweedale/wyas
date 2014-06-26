@@ -75,10 +75,10 @@ instance Error LispError where
   strMsg = Default
 
 
-type Eval = ErrorT LispError (State LispStack)
+type Eval = ErrorT LispError (StateT LispStack IO)
 
-runEval :: Eval a -> LispStack -> (Either LispError a, LispStack)
-runEval k = runState (runErrorT k)
+runEval :: Eval a -> LispStack -> IO (Either LispError a, LispStack)
+runEval k = runStateT (runErrorT k)
 
 
 data LispStack
