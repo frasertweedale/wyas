@@ -4,6 +4,7 @@ module Lib
   ) where
 
 import Control.Arrow
+import Control.Exception
 import Control.Monad.Error
 import qualified Data.Map as M
 import System.IO
@@ -95,7 +96,8 @@ unpackBool (Bool b) = return b
 unpackBool a = throwError $ TypeMismatch "boolean" a
 
 makePort :: IOMode -> [LispVal] -> Eval LispVal
-makePort mode [String s] = liftM Port $ liftIO $ openFile s mode
+makePort mode [String s] = liftIO (try (openFile s mode))
+  >>= either (throwError . IOError) (return . Port)
 makePort _ [a]  = throwError $ TypeMismatch "string" a
 makePort _ a    = throwError $ NumArgs 1 a
 
@@ -117,7 +119,8 @@ writeProc [_, a]  = throwError $ TypeMismatch "port" a
 writeProc a       = throwError $ NumArgs 2 a
 
 readContents :: [LispVal] -> Eval LispVal
-readContents [String s] = liftM String $ liftIO $ readFile s
+readContents [String s] =
+  liftIO (try (readFile s)) >>= either (throwError . IOError) (return . String)
 readContents [a]  = throwError $ TypeMismatch "string" a
 readContents a    = throwError $ NumArgs 1 a
 

@@ -9,6 +9,7 @@ module Eval
   , readExprList
   ) where
 
+import Control.Exception
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as M
@@ -31,7 +32,8 @@ readExprList :: String -> Eval [LispVal]
 readExprList = parseEval parseExprList
 
 load :: String -> Eval [LispVal]
-load s = liftIO (readFile s) >>= readExprList
+load s =
+  liftIO (try $ readFile s) >>= either (throwError . IOError) readExprList
 
 eval :: LispVal -> Eval LispVal
 eval v@(String _) = return v

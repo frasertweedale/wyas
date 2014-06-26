@@ -60,6 +60,7 @@ data LispError
   | BadSpecialForm String LispVal
   | NotFunction String String
   | UnboundVar String String
+  | IOError IOError
   | Default String
 
 instance Show LispError where
@@ -71,6 +72,7 @@ instance Show LispError where
   show (TypeMismatch expected found)
     = "Invalid type: expected " ++ expected ++ ", found " ++ show found
   show (Parser parseErr) = "Parse error at " ++ show parseErr
+  show (IOError e) = "IOError: " ++ show e
   show (Default s) = "Unclassified error: " ++ s
 
 instance Error LispError where
