@@ -4,7 +4,9 @@
 module Eval
   (
     eval
+  , load
   , readExpr
+  , readExprList
   ) where
 
 import Control.Monad.Error
@@ -17,10 +19,19 @@ import Types
 import Parser
 import Stack
 
-readExpr :: String -> Eval LispVal
-readExpr s = case Parsec.parse parseExpr "lisp" s of
+parseEval :: Parsec.Parser a -> String -> Eval a
+parseEval p s = case Parsec.parse p "lisp" s of
   Left err -> throwError $ Parser err
   Right v -> return v
+
+readExpr :: String -> Eval LispVal
+readExpr = parseEval parseExpr
+
+readExprList :: String -> Eval [LispVal]
+readExprList = parseEval parseExprList
+
+load :: String -> Eval [LispVal]
+load s = liftIO (readFile s) >>= readExprList
 
 eval :: LispVal -> Eval LispVal
 eval v@(String _) = return v
@@ -34,6 +45,7 @@ eval (List [Atom "if", p, t, f]) = do
     Bool _    -> eval f
     a         -> throwError $ TypeMismatch "boolean" a
 eval (Atom k) = getVar k
+eval (List [Atom "load", String s]) = liftM last (load s >>= mapStack)
 eval (List [Atom "set!", Atom k, expr]) = eval expr >>= setVar k
 eval (List [Atom "define", Atom k, expr]) = eval expr >>= defVar k
 eval (List (Atom "define" : List (Atom k : params) : body)) = do

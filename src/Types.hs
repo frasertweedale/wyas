@@ -15,6 +15,7 @@ module Types
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Data.Map as M
+import System.IO
 
 import qualified Text.ParserCombinators.Parsec as Parsec
 
@@ -26,6 +27,7 @@ data LispVal
   | Number Integer
   | String String
   | Bool Bool
+  | Port Handle
   | PrimFun ([LispVal] -> Eval LispVal)
   | Fun
     { params :: [String]
@@ -42,6 +44,7 @@ instance Show LispVal where
   show (Bool False) = "#f"
   show (List xs) = "(" ++ show xs ++ ")"
   show (DottedList xs x) = "(" ++ show xs ++ " . " ++ show x ++ ")"
+  show (Port _) = "<IO port>"
   show (PrimFun _) = "<primitive>"
   show (Fun {..}) = "(lambda (" ++ show params {-++ (case vararg of
       Nothing -> ""

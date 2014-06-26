@@ -1,8 +1,10 @@
 import Control.Monad
 import System.Environment
+import qualified Data.Map as M
 
-import Repl
 import Lib
+import Repl
+import Types
 
 
 main :: IO ()
@@ -10,5 +12,5 @@ main = do
   args <- getArgs
   case args of
     []  -> runRepl lib
-    [s] -> runOne lib s
-    _   -> putStrLn "args: zero -> repl; one -> eval; _ -> wat"
+    (s:args') ->
+      runOne s $ Frame (M.singleton "args" (List $ map String args')) lib

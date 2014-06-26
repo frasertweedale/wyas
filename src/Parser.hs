@@ -1,6 +1,7 @@
 module Parser
   (
     parseExpr
+  , parseExprList
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
@@ -25,6 +26,9 @@ parseExpr =
     x <- try parseList <|> parseDottedList
     _ <- char ')'
     return x
+
+parseExprList :: Parser [LispVal]
+parseExprList = endBy parseExpr spaces
 
 parseStringChar :: Parser Char
 parseStringChar =

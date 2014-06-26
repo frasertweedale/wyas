@@ -11,20 +11,20 @@ import Eval
 import Stack
 import Types
 
-evalAndPrint :: LispStack -> String -> IO LispStack
-evalAndPrint env s = do
-  (result, env') <- runEval (readExpr s >>= eval) env
+evalAndPrint :: Eval LispVal -> LispStack -> IO LispStack
+evalAndPrint k env = do
+  (result, env') <- runEval k env
   case result of
-    Left e  -> print e >> return env'
+    Left e  -> hPrint stderr e >> return env'
     Right v -> print v >> return env'
 
-runOne :: LispStack -> String -> IO ()
-runOne env expr = void $ evalAndPrint env expr
+runOne :: String -> LispStack -> IO ()
+runOne s = void . evalAndPrint (eval (List [Atom "load", String s]))
 
 runRepl :: LispStack -> IO ()
 runRepl env = do
-  expr <- readPrompt ">>> "
-  unless (expr == "quit") (evalAndPrint env expr >>= runRepl)
+  s <- readPrompt ">>> "
+  unless (s == "quit") (evalAndPrint (readExpr s >>= eval) env >>= runRepl)
 
 flushStr :: String -> IO ()
 flushStr s = putStr s >> hFlush stdout
