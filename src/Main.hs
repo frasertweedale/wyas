@@ -1,4 +1,3 @@
-import Control.Monad
 import System.Environment
 import qualified Data.Map as M
 
